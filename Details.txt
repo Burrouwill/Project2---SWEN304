@@ -1,0 +1,3 @@
+psql -U burrouwill -d burrouwill_jdbc ps: 123
+
+Need postgres admin to modify any other privs
