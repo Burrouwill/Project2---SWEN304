@@ -6,6 +6,11 @@
 
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import javax.swing.*;
 
 public class LibraryModel {
@@ -47,13 +52,101 @@ public class LibraryModel {
 	
 	
     }
-
+    /**
+     * Returns information about a certain book based on its isbn. 
+     * @param isbn
+     * @return
+     */
     public String bookLookup(int isbn) {
-	return "Lookup Book Stub";
+	
+    	try {
+    		// Prepare the query
+    		PreparedStatement stmt = con.prepareStatement(
+    			"SELECT * FROM book\n"
+    		  + "JOIN book_author ON book.isbn = book_author.isbn\n"
+    		  + "JOIN author ON book_author.authorid = author.authorid\n"
+    		  + "WHERE book.isbn = ?\n"
+    		  + "ORDER BY author.authorid;");
+    		// Set first param to isbn
+    		stmt.setInt(1, isbn);
+    		ResultSet rs = stmt.executeQuery();
+    		
+    		// Get the info from the query
+    		if (rs.next()) {
+    			
+    			String title = rs.getString("title");
+    			String edition = rs.getString("edition_no");
+    			String noOfCopies = rs.getString("numofcop");
+    			String copiesLeft = rs.getString("numleft");
+    			
+    		// Retrieve multiple surnames
+                StringBuilder authors = new StringBuilder();
+                boolean isFirstAuthor = true;
+                do {
+                    String surname = rs.getString("surname");
+                    if (isFirstAuthor) {
+                        authors.append(surname.trim());
+                        isFirstAuthor = false;
+                    } else {
+                        authors.append(", ").append(surname.trim());
+                    }
+                } while (rs.next());
+    			
+    	     // Format & return string
+    			return 	"Book Lookup:\n"
+    					+ "\tISBN: " + isbn + " Book Title: " + title + "\n"
+    					+ "\tEdition: " + edition + " - Number Of Copies: " + noOfCopies + " - Copies Left: " + copiesLeft + "\n"
+    					+ "\tAuthors: " + authors;
+    		} else {
+    			return "Book not found.";
+    		}
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while looking up the requested book.";
+    	}
+    	
     }
-
+    
+    /**
+     * Prints the information of all books in the database.
+     * @return
+     */
     public String showCatalogue() {
-	return "Show Catalogue Stub";
+	
+    	try { 
+    		
+    		// Execute Query
+    		Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT book.isbn FROM book");
+    		
+    		// Get all of the isbn's
+    		List<String> isbnAll = new ArrayList<>();
+    		
+    		while (rs.next()) {
+    			isbnAll.add(rs.getString("isbn"));
+    		}
+
+    		// Create & return the list of books 
+    		Collections.sort(isbnAll);
+    		String result = isbnAll.stream()
+    				.map(Integer::parseInt)
+    			    .map(isbn -> bookLookup(isbn))
+    			    .map(isbn -> isbn.trim())
+    			    .map(string -> string.replace("Book Lookup:", ""))
+    			    .map(string -> string.replace("Book not found.", ""))
+    			    .filter(string -> !string.equals(""))
+    			    .collect(Collectors.joining("\n"));
+    		
+    		
+    		System.out.println(result);
+    			return result;
+    	             
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while retrieving catalogue.";
+    	}
+    	
+    	
     }
 
     public String showLoanedBooks() {
