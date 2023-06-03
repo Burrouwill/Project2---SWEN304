@@ -6,6 +6,7 @@
 
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -152,19 +153,7 @@ public class LibraryModel {
      */
     public String showLoanedBooks() {
 	
-    	try {
-    		
-    	// Execute Query
-		Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT * FROM cust_book");
-        
-        return "";
-    	
-    	
-    	} catch (SQLException e) {
-    		e.printStackTrace();
-    		return "Error occured while retrieving loaned books.";
-    	}
+    	return "";
     	
     }
     /**
@@ -243,25 +232,197 @@ public class LibraryModel {
         		return "Error occured while retrieving all authors.";
         	}
     }
-
+    /**
+     * Returns all the information in the database for a given customer, including books currently borrowed.
+     * @param customerID
+     * @return
+     */
     public String showCustomer(int customerID) {
-	return "Show Customer Stub";
-    }
+    	try {
+    		// Prepare the query
+    		PreparedStatement stmt = con.prepareStatement(
+    			    "SELECT * "
+    			  + "FROM customer "
+    			  + "LEFT JOIN cust_book ON customer.customerid = cust_book.customerid "
+    			  + "LEFT JOIN book ON cust_book.isbn = book.isbn "
+    			  + "WHERE customer.customerid = ?;"
+    			);
 
+    		// Set first param to authorID
+    		stmt.setInt(1, customerID);
+    		ResultSet rs = stmt.executeQuery();
+    		
+    		// Get the info from the query
+    		if (rs.next()) {
+    			
+    			String fName = rs.getString("f_name").trim();
+    			String lName = rs.getString("l_name").trim();
+    			String city = rs.getString("city");
+    			
+    			if (city == null) {city = "(No city)";}
+    			
+    			
+    			String nameAndId = customerID+": "+lName+" "+fName+" - "+city;
+    			
+    			List<String> booksLoaned = new ArrayList<>();
+    			do {
+                    
+    				String isbn = rs.getString("isbn");
+    				String title = rs.getString("title");
+    				
+    				if (isbn == null || title == null) {break;}
+    				
+    				
+    				booksLoaned.add(isbn.trim() + " - " + title.trim());
+                } while (rs.next());
+    			
+    		// Build the string
+                StringBuilder author = new StringBuilder();
+                author.append("Show Customer:\n");
+                author.append("\t"+nameAndId+"\n");
+                author.append("\tBooks Written:\n");
+                
+                booksLoaned.stream().filter(string -> !string.equals("-"));
+                
+                if (booksLoaned.isEmpty()) {author.append("(No books borrowed)");
+                } else {booksLoaned.stream().forEach(book -> author.append("\t\t"+book+"\n"));}
+                
+    	     // Return string
+    			return 	author.toString();
+    		} else {
+    			return "Customer not found.";
+    		}
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while looking up the requested customer.";
+    	}
+    }
+    
+    /**
+     * Returns a string of all the customers is the database.
+     * @return
+     */
     public String showAllCustomers() {
-	return "Show All Customers Stub";
+    	try {
+    		
+        	// Execute Query
+    		Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery
+            		("SELECT * FROM customer ORDER BY customerid");
+            
+            // Build and return the string 
+            StringBuilder result = new StringBuilder();
+            result.append("Show All Customers: \n");
+            while (rs.next()) {
+                String customerID = rs.getString("customerid");
+                String lastName = rs.getString("l_name");
+                String firstName = rs.getString("f_name");
+                String city = rs.getString("city");
+
+                // Check for null values
+                if (customerID == null) {
+                    customerID = "N/A";
+                }
+                if (lastName == null) {
+                    lastName = "(No Last Name)";
+                }
+                if (firstName == null) {
+                    firstName = "(No First Name)";
+                }
+                if (city == null) {
+                    city = "(No City)";
+                }
+
+                String fullNameId = "\t" + customerID + ": " + lastName.trim() + ", " + firstName.trim() + " - " + city + "\n";
+                result.append(fullNameId);
+            }
+        	
+            return result.toString();
+        	
+        	} catch (SQLException e) {
+        		e.printStackTrace();
+        		return "Error occured while retrieving all customers.";
+        	}
     }
 
-    public String borrowBook(int isbn, int customerID,
-			     int day, int month, int year) {
-	return "Borrow Book Stub";
+    public String borrowBook(int isbn, int customerID, int day, int month, int year) {
+	
+    	try {
+            con.setAutoCommit(false); // Start a transaction
+
+            // Check whether the customer exists and lock them
+            PreparedStatement customerStmt = con.prepareStatement("SELECT * FROM Customer WHERE customerID = ? FOR UPDATE");
+            customerStmt.setInt(1, customerID);
+            ResultSet customerResult = customerStmt.executeQuery();
+            if (!customerResult.next()) {
+                con.rollback(); // Rollback the transaction
+                return "Customer not found.";
+            }
+
+            // Lock the book if it exists and a copy is available
+            PreparedStatement bookStmt = con.prepareStatement("SELECT * FROM Book WHERE isbn = ? AND numleft > 0 FOR UPDATE");
+            bookStmt.setInt(1, isbn);
+            ResultSet bookResult = bookStmt.executeQuery();
+            if (!bookResult.next()) {
+                con.rollback(); // Rollback the transaction
+                return "Book not found or no copies available.";
+            }
+
+            // Insert tuple in the Cust_Book table
+            PreparedStatement insertStmt = con.prepareStatement("INSERT INTO Cust_Book (isbn, customerId, dueDate) VALUES (?, ?, ?)");
+            insertStmt.setInt(1, isbn);
+            insertStmt.setInt(2, customerID);
+            LocalDate date = LocalDate.of(year, month, day);
+            insertStmt.setDate(3, java.sql.Date.valueOf(date));
+            insertStmt.executeUpdate();
+
+
+            // Interact with the user to simulate contention
+            JOptionPane.showMessageDialog(dialogParent, "Click OK to continue the transaction.");
+
+            // Update the Book table
+            PreparedStatement updateStmt = con.prepareStatement("UPDATE Book SET numleft = numleft - 1 WHERE isbn = ?");
+            updateStmt.setInt(1, isbn);
+            updateStmt.executeUpdate();
+
+            //con.commit(); // Commit the transaction
+            return "Book borrowed successfully.";
+            
+        } catch (SQLException e) {
+            try {
+                con.rollback(); // Rollback the transaction
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+            e.printStackTrace();
+            return "Error occurred while borrowing the book.";
+            
+        } finally {
+            try {
+                con.setAutoCommit(true); // Reset auto-commit to true
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    	
+    	
     }
 
     public String returnBook(int isbn, int customerid) {
 	return "Return Book Stub";
     }
-
+    
+    /**
+     * Closes the connection to the Database.
+     */
     public void closeDBConnection() {
+    	try {
+            if (con != null && !con.isClosed()) {
+                con.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public String deleteCus(int customerID) {
