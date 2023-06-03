@@ -344,7 +344,17 @@ public class LibraryModel {
         		return "Error occured while retrieving all customers.";
         	}
     }
-
+    
+    
+    /**
+     * Borrows a book if valid args given.
+     * @param isbn
+     * @param customerID
+     * @param day
+     * @param month
+     * @param year
+     * @return
+     */
     public String borrowBook(int isbn, int customerID, int day, int month, int year) {
 	
     	try {
@@ -377,7 +387,7 @@ public class LibraryModel {
             insertStmt.executeUpdate();
 
 
-            // Interact with the user to simulate contention
+            // Double check
             JOptionPane.showMessageDialog(dialogParent, "Click OK to continue the transaction.");
 
             // Update the Book table
@@ -407,10 +417,57 @@ public class LibraryModel {
     	
     	
     }
-
+    
+    /**
+     * Returns a book if it was previously borrowed.
+     * @param isbn
+     * @param customerid
+     * @return
+     */
     public String returnBook(int isbn, int customerid) {
-	return "Return Book Stub";
+    	try {
+            con.setAutoCommit(false); // Start a transaction
+
+            // Delete tuple from the Cust_Book table
+            PreparedStatement deleteStmt = con.prepareStatement("DELETE FROM Cust_Book WHERE isbn = ? AND customerid = ?");
+            deleteStmt.setInt(1, isbn);
+            deleteStmt.setInt(2, customerid);
+            int rowsAffected = deleteStmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                con.rollback(); // Rollback the transaction
+                return "Book not found or not borrowed by the customer.";
+            }
+
+            // Double check
+            JOptionPane.showMessageDialog(dialogParent, "Click OK to continue the transaction.");
+
+            // Update the Book table
+            PreparedStatement updateStmt = con.prepareStatement("UPDATE Book SET numleft = numleft + 1 WHERE isbn = ?");
+            updateStmt.setInt(1, isbn);
+            updateStmt.executeUpdate();
+
+            con.commit(); // Commit the transaction
+            return "Book returned successfully.";
+            
+        } catch (SQLException e) {
+            try {
+                con.rollback(); // Rollback the transaction
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+            e.printStackTrace();
+            return "Error occurred while returning the book.";
+            
+        } finally {
+            try {
+                con.setAutoCommit(true); // Reset auto-commit to true
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
+    
     
     /**
      * Closes the connection to the Database.
