@@ -137,8 +137,6 @@ public class LibraryModel {
     			    .filter(string -> !string.equals(""))
     			    .collect(Collectors.joining("\n"));
     		
-    		
-    		System.out.println(result);
     			return result;
     	             
     	} catch (SQLException e) {
@@ -148,17 +146,102 @@ public class LibraryModel {
     	
     	
     }
-
+    /**
+     * 
+     * @return
+     */
     public String showLoanedBooks() {
-	return "Show Loaned Books Stub";
+	
+    	try {
+    		
+    	// Execute Query
+		Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT * FROM cust_book");
+        
+        return "";
+    	
+    	
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while retrieving loaned books.";
+    	}
+    	
     }
-
+    /**
+     * Returns a string containing info about  an author and all the books they have authored.
+     * @param authorID
+     * @return
+     */
     public String showAuthor(int authorID) {
-	return "Show Author Stub";
-    }
+    	try {
+    		// Prepare the query
+    		PreparedStatement stmt = con.prepareStatement(
+    			    "SELECT * FROM author " +
+    			    "JOIN book_author ON book_author.authorid = author.authorid " +
+    			    "JOIN book ON book.isbn = book_author.isbn " +
+    			    "WHERE author.authorid = ?;"
+    			);
 
+    		// Set first param to authorID
+    		stmt.setInt(1, authorID);
+    		ResultSet rs = stmt.executeQuery();
+    		
+    		// Get the info from the query
+    		if (rs.next()) {
+    			
+    			String nameAndId = authorID+" - "+rs.getString("name").trim()+" "+rs.getString("surname");
+    			
+    			List<String> booksWritten = new ArrayList<>();
+    			do {
+                    booksWritten.add(rs.getString("isbn").trim() + " - " + rs.getString("title").trim());
+                } while (rs.next());
+    			
+    		// Build the string
+                StringBuilder author = new StringBuilder();
+                author.append("Show Author:\n");
+                author.append("\t"+nameAndId+"\n");
+                author.append("\tBooks Written:\n");
+                booksWritten.stream().forEach(book -> author.append("\t\t"+book+"\n"));
+                
+    	     // Format & return string
+    			return 	author.toString();
+    		} else {
+    			return "Author not found.";
+    		}
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while looking up the requested author.";
+    	}
+    }
+    
+    /**
+     * Returns a string containing all of the authors in the database table author.
+     * @return
+     */
     public String showAllAuthors() {
-	return "Show All Authors Stub";
+    	try {
+    		
+        	// Execute Query
+    		Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery
+            		("SELECT * FROM author ORDER BY authorid");
+            
+            StringBuilder result = new StringBuilder();
+            result.append("Show All Authors: \n");
+            while (rs.next()) {
+                int authorID = rs.getInt("authorid");
+                String name = rs.getString("name");
+                String surname = rs.getString("surname");
+                String fullNameId = "\t"+authorID+": "+surname.trim()+", "+name.trim()+"\n";
+                result.append(fullNameId);
+            }
+    			return result.toString();
+        	
+        	
+        	} catch (SQLException e) {
+        		e.printStackTrace();
+        		return "Error occured while retrieving all authors.";
+        	}
     }
 
     public String showCustomer(int customerID) {
