@@ -43,8 +43,9 @@ public class LibraryModel {
 	String url = "jdbc:postgresql://localhost:5432/burrouwill_jdbc";
 
 			try{
-			con = DriverManager.getConnection(url,
-			userid, password);
+			con = DriverManager.getConnection(url,userid, password);
+			 // Set default transaction isolation level = readOnly
+	        con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
 			}
 			catch (SQLException sqlex){
 			System.out.println("Can not connect");
@@ -148,12 +149,45 @@ public class LibraryModel {
     	
     }
     /**
-     * 
+     * Returns a sting outlining the details of all books currently on loan. 
      * @return
      */
     public String showLoanedBooks() {
 	
-    	return "";
+    	try { 
+    		
+    		// Execute Query
+    		Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT *  FROM cust_book\n"
+            		+ "JOIN book ON book.isbn = cust_book.isbn\n"
+            		+ "JOIN customer ON customer.customerid = cust_book.customerid");
+    		
+            
+            // Get info on loaned books (If there are any)
+            	if (rs.next()) {
+        		
+        			
+        			List<String> booksWritten = new ArrayList<>();
+        			do {
+                        booksWritten.add(rs.getString("isbn").trim() + " - " + rs.getString("title").trim()+" \n\t\t(Loaned To: "+rs.getString("f_name").trim()+" ("+rs.getString("customerid")+") "+rs.getString("l_name").trim()+", Due Date: "+rs.getString("duedate")+")");
+                    } while (rs.next());
+        			
+        		// Build the string
+                    StringBuilder author = new StringBuilder();
+                    author.append("Books on Loan:\n");
+                    booksWritten.stream().forEach(book -> author.append("\t"+book+"\n"));
+                    
+        	     // Format & return string
+        			return 	author.toString();
+        		} else {
+        			return "No books currently on loan.";
+        		}
+    	             
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		return "Error occured while retrieving books on loan.";
+    	}
+    	
     	
     }
     /**
@@ -280,7 +314,7 @@ public class LibraryModel {
                 StringBuilder author = new StringBuilder();
                 author.append("Show Customer:\n");
                 author.append("\t"+nameAndId+"\n");
-                author.append("\tBooks Written:\n");
+                author.append("\tBooks Borrowed:\n");
                 
                 booksLoaned.stream().filter(string -> !string.equals("-"));
                 
@@ -387,7 +421,7 @@ public class LibraryModel {
             insertStmt.executeUpdate();
 
 
-            // Double check
+            // Double check / Pause
             JOptionPane.showMessageDialog(dialogParent, "Click OK to continue the transaction.");
 
             // Update the Book table
@@ -439,7 +473,7 @@ public class LibraryModel {
                 return "Book not found or not borrowed by the customer.";
             }
 
-            // Double check
+            // Double check / Pause
             JOptionPane.showMessageDialog(dialogParent, "Click OK to continue the transaction.");
 
             // Update the Book table
