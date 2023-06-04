@@ -1,6 +1,43 @@
 Project 2 SQL Drafts:
 
+
+
 bookLookup:
 
+	*We have isbn from args*
 
-	
+	SELECT * FROM book
+    		  JOIN book_author ON book.isbn = book_author.isbn
+    		  JOIN author ON book_author.authorid  author.authorid
+    		  
+    		  ORDER BY author.authorid;
+
+
+SELECT * FROM author
+JOIN book_author ON book_author.authorid = author.authorid
+JOIN book ON book.isbn = book_author.isbn
+WHERE author.authorid = 2;
+
+
+SELECT * FROM customer
+LEFT JOIN cust_book ON customer.customerid = cust_book.customerid
+LEFT JOIN book ON cust_book.isbn = book.isbn
+WHERE customer.customerid = 2;
+
+
+
+
+Testing Book loan
+
+--> 7777 & 1
+
+
+SELECT *  FROM cust_book
+JOIN book ON book.isbn = cust_book.isbn
+JOIN customer ON customer.customerid = cust_book.customerid;
+
+
+Deletion Tests:
+
+INSERT INTO customer (customerid,l_name,f_name,city)
+VALUES (99,'99','99','Wellington');

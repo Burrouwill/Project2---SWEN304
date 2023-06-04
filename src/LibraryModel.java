@@ -1,7 +1,7 @@
 /*
  * LibraryModel.java
- * Author:
- * Created on:
+ * Author: burrouwill
+ * Created on: 03/06/22
  */
 
 
@@ -161,12 +161,8 @@ public class LibraryModel {
             ResultSet rs = stmt.executeQuery("SELECT *  FROM cust_book\n"
             		+ "JOIN book ON book.isbn = cust_book.isbn\n"
             		+ "JOIN customer ON customer.customerid = cust_book.customerid");
-    		
-            
             // Get info on loaned books (If there are any)
             	if (rs.next()) {
-        		
-        			
         			List<String> booksWritten = new ArrayList<>();
         			do {
                         booksWritten.add(rs.getString("isbn").trim() + " - " + rs.getString("title").trim()+" \n\t\t(Loaned To: "+rs.getString("f_name").trim()+" ("+rs.getString("customerid")+") "+rs.getString("l_name").trim()+", Due Date: "+rs.getString("duedate")+")");
@@ -381,7 +377,7 @@ public class LibraryModel {
     
     
     /**
-     * Borrows a book if valid args given.
+     * Borrows a book & assigns it to a customer if valid args given.
      * @param isbn
      * @param customerID
      * @param day
@@ -429,7 +425,7 @@ public class LibraryModel {
             updateStmt.setInt(1, isbn);
             updateStmt.executeUpdate();
 
-            //con.commit(); // Commit the transaction
+            con.commit(); // Commit the transaction
             return "Book borrowed successfully.";
             
         } catch (SQLException e) {
@@ -515,16 +511,67 @@ public class LibraryModel {
             e.printStackTrace();
         }
     }
-
+    
+    /**
+     * Deletes a customer from the Database
+     * @param customerID
+     * @return
+     */
     public String deleteCus(int customerID) {
-    	return "Delete Customer";
-    }
+    	try {
+            PreparedStatement stmt = con.prepareStatement("DELETE FROM Customer WHERE customerid = ?");
+            stmt.setInt(1, customerID);
+            int rowsAffected = stmt.executeUpdate();
 
+            if (rowsAffected == 0) {
+                return "Customer not found.";
+            } else {
+                return "Customer deleted successfully.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Error occurred while deleting the customer.";
+        }
+    }
+    /**
+     * Deletes an Author from the database
+     */
     public String deleteAuthor(int authorID) {
-    	return "Delete Author";
-    }
+    	try {
+            PreparedStatement stmt = con.prepareStatement("DELETE FROM Author WHERE authorid = ?");
+            stmt.setInt(1, authorID);
+            int rowsAffected = stmt.executeUpdate();
 
+            if (rowsAffected == 0) {
+                return "Author not found.";
+            } else {
+                return "Author deleted successfully.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Error occurred while deleting the author.";
+        }
+    }
+    
+    /**
+     * Deletes a book from the Database
+     * @param isbn
+     * @return
+     */
     public String deleteBook(int isbn) {
-    	return "Delete Book";
+    	try {
+            PreparedStatement stmt = con.prepareStatement("DELETE FROM Book WHERE isbn = ?");
+            stmt.setInt(1, isbn);
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                return "Book not found.";
+            } else {
+                return "Book deleted successfully.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Error occurred while deleting the book.";
+        }
     }
 }
